@@ -22,18 +22,18 @@
       </div>
     </div>
     <!-- Unity loader script -->
-    <script>
+<script>
 const unityApp = {
     applyCommonFixes: function () {
-        // ...
+        // Add your common fixes here.
     },
 
     tryRotationLock() {
-        // ...
+        // Add your rotation lock here.
     },
 
     tryLockAspectRatio() {
-        // ...
+        // Add your aspect ratio code here.
     },
 
     loadSplitFile: async function (basePath) {
@@ -41,10 +41,11 @@ const unityApp = {
         let totalLength = 0;
 
         for (let part = 1; part <= 15; part++) {
-            const partName = `${basePath}.part${String(part).padStart(2, "0")}`;
+            const partName =
+                `${basePath}.part${String(part).padStart(2, "0")}`;
 
             console.log(
-                `Loading WASM part ${part}/15: ${partName}`
+                `Loading part ${part}/15: ${partName}`
             );
 
             const response = await fetch(partName);
@@ -73,44 +74,42 @@ const unityApp = {
         }
 
         console.log(
-            `Successfully combined ${chunks.length} WASM parts (${totalLength} bytes)`
+            `Combined ${chunks.length} parts: ${totalLength} bytes`
         );
 
         return merged.buffer;
     },
 
     startLoading: async function () {
-        const canvas = document.querySelector("#unity-canvas");
-        const loadingBar = document.querySelector("#unity-loading-bar");
-        const progressBarFull = document.querySelector(
-            "#unity-progress-bar-full"
-        );
+        const canvas =
+            document.querySelector("#unity-canvas");
+
+        const loadingBar =
+            document.querySelector("#unity-loading-bar");
+
+        const progressBarFull =
+            document.querySelector("#unity-progress-bar-full");
 
         const buildUrl = "Build";
 
         const loaderUrl =
-            buildUrl +
-            "/knockout[8]-mirraSDK[5.1.2].loader.js";
+            `${buildUrl}/knockout[8]-mirraSDK[5.1.2].loader.js`;
 
         const config = {
             arguments: [],
 
             dataUrl:
-                buildUrl +
-                "/knockout[8]-mirraSDK[5.1.2].data.br",
+                `${buildUrl}/knockout[8]-mirraSDK[5.1.2].data.br`,
 
             frameworkUrl:
-                buildUrl +
-                "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
+                `${buildUrl}/knockout[8]-mirraSDK[5.1.2].framework.js.br`,
 
             codeUrl: "",
 
             streamingAssetsUrl: "StreamingAssets",
 
             companyName: "DefaultCompany",
-
             productName: "knockout",
-
             productVersion: "0.1.0",
 
             showBanner: (msg, type) => {
@@ -122,61 +121,66 @@ const unityApp = {
             }
         };
 
-        // Load the 15 WASM parts
-const wasmBuffer = await this.loadSplitFile(
-    buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br"
-);
+        /*
+         * Load all 15 parts.
+         *
+         * IMPORTANT:
+         * These files currently appear to contain WAT text:
+         *
+         * 28 6d 6f 64 75 6c 65 0a
+         * ( m  o  d  u  l  e \n
+         *
+         * That is NOT a WASM binary.
+         */
+        const wasmBuffer = await this.loadSplitFile(
+            `${buildUrl}/knockout[8]-mirraSDK[5.1.2].wasm.br`
+        );
 
-const bytes = new Uint8Array(wasmBuffer);
+        const bytes = new Uint8Array(wasmBuffer);
 
-console.log(
-    "First 32 bytes:",
-    Array.from(bytes.slice(0, 32))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join(" ")
-);
+        const header = Array.from(
+            bytes.slice(0, 16)
+        )
+            .map(b =>
+                b.toString(16).padStart(2, "0")
+            )
+            .join(" ");
 
-console.log(
-    "First 32 characters:",
-    new TextDecoder().decode(bytes.slice(0, 32))
-);
+        const text = new TextDecoder().decode(
+            bytes.slice(0, 32)
+        );
 
-if (
-    bytes[0] !== 0x00 ||
-    bytes[1] !== 0x61 ||
-    bytes[2] !== 0x73 ||
-    bytes[3] !== 0x6d
-) {
-    throw new Error(
-        "The combined file is NOT WASM. " +
-        "Header: " +
-        Array.from(bytes.slice(0, 8))
-            .map(b => b.toString(16).padStart(2, "0"))
-            .join(" ")
-    );
-}
+        console.log("Combined file header:", header);
+        console.log("Combined file text:", text);
 
-config.codeUrl = URL.createObjectURL(
-    new Blob([wasmBuffer], {
-        type: "application/wasm"
-    })
-);
-      
-      const wasmBytes = new Uint8Array(wasmBuffer);
+        /*
+         * A real WASM binary must begin with:
+         *
+         * 00 61 73 6d
+         *
+         * If it starts with:
+         *
+         * 28 6d 6f 64
+         *
+         * then it is WAT text and cannot be passed
+         * directly to WebAssembly.instantiate().
+         */
+        if (
+            bytes[0] !== 0x00 ||
+            bytes[1] !== 0x61 ||
+            bytes[2] !== 0x73 ||
+            bytes[3] !== 0x6d
+        ) {
+            throw new Error(
+                "The 15 parts do not contain a compiled WASM binary.\n\n" +
+                `Header: ${header}\n\n` +
+                `Text: ${text}`
+            );
+        }
 
-console.log(
-    "WASM header:",
-    Array.from(wasmBytes.slice(0, 16))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join(" ")
-);
-
-console.log(
-    "First bytes as text:",
-    new TextDecoder().decode(wasmBytes.slice(0, 32))
-);
-
-        // Make the combined WASM available to Unity
+        /*
+         * Only reached when the file is actually WASM.
+         */
         config.codeUrl = URL.createObjectURL(
             new Blob(
                 [wasmBuffer],
@@ -186,29 +190,10 @@ console.log(
             )
         );
 
-        const matchWebGLToCanvasSize = "";
-
-        if (!this.isEmpty(matchWebGLToCanvasSize)) {
-            config.matchWebGLToCanvasSize =
-                this.toBoolean(matchWebGLToCanvasSize);
-        }
-
-        const autoSyncPersistentDataPath = "";
-
-        if (!this.isEmpty(autoSyncPersistentDataPath)) {
-            config.autoSyncPersistentDataPath =
-                this.toBoolean(autoSyncPersistentDataPath);
-        }
-
-        const devicePixelRatio = this.toNumber("");
-
-        if (this.isNumber(devicePixelRatio)) {
-            config.devicePixelRatio = devicePixelRatio;
-        }
-
         loadingBar.style.display = "block";
 
-        const script = document.createElement("script");
+        const script =
+            document.createElement("script");
 
         script.src = loaderUrl;
 
@@ -218,7 +203,7 @@ console.log(
                 config,
                 (progress) => {
                     progressBarFull.style.width =
-                        100 * progress + "%";
+                        `${100 * progress}%`;
                 }
             )
                 .then(() => {
@@ -228,6 +213,12 @@ console.log(
                     console.error(message);
                     alert(message);
                 });
+        };
+
+        script.onerror = () => {
+            console.error(
+                `Failed to load Unity loader: ${loaderUrl}`
+            );
         };
 
         document.body.appendChild(script);
@@ -291,7 +282,6 @@ console.log(
 
         function convertToNumber(str) {
             const num = parseFloat(str);
-
             return isNaN(num) ? 0 : num;
         }
 
