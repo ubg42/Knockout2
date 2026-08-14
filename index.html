@@ -119,12 +119,20 @@ function setBar(pct, label) {
   if (dlStatus) dlStatus.textContent = label || '';
 }
 
-async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
+async function fetchParts(baseUrl, partCount, barStart, barEnd, label, padNumbers) {
   var parts = [];
 
   for (var i = 1; i <= partCount; i++) {
-    var partNumber = String(i).padStart(2, '0');
+    var partNumber = padNumbers
+      ? String(i).padStart(2, '0')
+      : String(i);
+
     var partUrl = baseUrl + '.part' + partNumber;
+
+    setBar(
+      barStart + ((i - 1) / partCount) * (barEnd - barStart),
+      label + partNumber + '/' + String(partCount).padStart(2, '0')
+    );
 
     console.log('[Parts] Loading:', partUrl);
 
@@ -158,50 +166,43 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 
   return merged;
 }
-/* Part'ları önceden indir */
+
+/* Paralel: SDK init + reklam + part indirme aynı anda */
 async function preloadParts() {
   try {
-    setBar(0,'Data indiriliyor...');
-    var dataBytes = await fetchParts(CDN+'/'+DATA_FILE, DATA_PARTS, 1,  50, 'Data indiriliyor... ');
-    _dataBlobUrl  = brotliBlobUrl(dataBytes, DATA_FILE);
+    setBar(0, 'Data indiriliyor...');
 
-    var wasmBytes = await fetchParts(CDN+'/'+WASM_FILE, WASM_PARTS, 50, 90, 'WASM indiriliyor... ');
-    _wasmBlobUrl  = brotliBlobUrl(wasmBytes, WASM_FILE);
+    // DATA: .part1, .part2, .part3...
+    var dataBytes = await fetchParts(
+      CDN + '/' + DATA_FILE,
+      DATA_PARTS,
+      1,
+      50,
+      'Data indiriliyor... ',
+      false
+    );
+
+    _dataBlobUrl = brotliBlobUrl(dataBytes, DATA_FILE);
+
+    // WASM: .part01, .part02, .part03...
+    var wasmBytes = await fetchParts(
+      CDN + '/' + WASM_FILE,
+      WASM_PARTS,
+      50,
+      90,
+      'WASM indiriliyor... ',
+      true
+    );
+
+    _wasmBlobUrl = brotliBlobUrl(wasmBytes, WASM_FILE);
 
     setBar(90, 'Oyun başlatılıyor...');
     _partsReady = true;
+
     console.log('[Drift] Parts ready, waiting for ad close...');
-  } catch(e) {
+  } catch (e) {
     dlStatus.textContent = 'İndirme hatası: ' + e.message;
     console.error(e);
-  }
-}
-
-/* SDK init + reklam — reklam kapanınca Unity başlar */
-YaGames.init().then(function(ysdk) {
-  console.log('Yandex SDK initialized');
-  window.ysdk = ysdk;
-  sdk = ysdk;
-
-  sdk.adv.showFullscreenAdv({callbacks:{
-    onClose:   function(){ closeAdFunction(); },
-    onError:   function(){ closeAdFunction(); },
-    onOffline: function(){ closeAdFunction(); }
-  }});
-});
-
-/* Paralel: SDK init + reklam + part indirme aynı anda */
-preloadParts();
-
-function closeAdFunction() {
-  console.log('[Drift] Ad closed');
-  if (_partsReady) {
-    initializeUnity();
-  } else {
-    /* Parts henüz bitmemiş, bitince Unity başlatılacak */
-    var iv = setInterval(function(){
-      if (_partsReady) { clearInterval(iv); initializeUnity(); }
-    }, 200);
   }
 }
 
