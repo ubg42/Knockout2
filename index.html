@@ -127,11 +127,41 @@ const wasmBuffer = await this.loadSplitFile(
     buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br"
 );
 
+const bytes = new Uint8Array(wasmBuffer);
+
+console.log(
+    "First 32 bytes:",
+    Array.from(bytes.slice(0, 32))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join(" ")
+);
+
+console.log(
+    "First 32 characters:",
+    new TextDecoder().decode(bytes.slice(0, 32))
+);
+
+if (
+    bytes[0] !== 0x00 ||
+    bytes[1] !== 0x61 ||
+    bytes[2] !== 0x73 ||
+    bytes[3] !== 0x6d
+) {
+    throw new Error(
+        "The combined file is NOT WASM. " +
+        "Header: " +
+        Array.from(bytes.slice(0, 8))
+            .map(b => b.toString(16).padStart(2, "0"))
+            .join(" ")
+    );
+}
+
 config.codeUrl = URL.createObjectURL(
     new Blob([wasmBuffer], {
         type: "application/wasm"
     })
 );
+      
       const wasmBytes = new Uint8Array(wasmBuffer);
 
 console.log(
