@@ -132,6 +132,19 @@ config.codeUrl = URL.createObjectURL(
         type: "application/wasm"
     })
 );
+      const wasmBytes = new Uint8Array(wasmBuffer);
+
+console.log(
+    "WASM header:",
+    Array.from(wasmBytes.slice(0, 16))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join(" ")
+);
+
+console.log(
+    "First bytes as text:",
+    new TextDecoder().decode(wasmBytes.slice(0, 32))
+);
 
         // Make the combined WASM available to Unity
         config.codeUrl = URL.createObjectURL(
