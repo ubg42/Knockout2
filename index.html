@@ -23,33 +23,6 @@
     </div>
     <!-- Unity loader script -->
 <script>
-<!DOCTYPE html>
-<html lang="en-us">
-<head>
-<meta charset="utf-8"/>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<title>Unity WebGL Player | Drift No Limit</title>
-<link rel="shortcut icon" href="TemplateData/favicon.ico"/>
-<link rel="stylesheet" href="TemplateData/style.css"/>
-<!-- howler.js — CDN'den (Web Audio library, oyunun ihtiyacı) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
-</head>
-<body>
-<div id="unity-container" style="position:absolute;width:100%;height:100%;left:0;top:0;">
-  <canvas id="unity-canvas" style="position:absolute;width:100%;height:100%;"></canvas>
-  <div id="unity-loading-bar">
-    <div id="unity-logo"></div>
-    <div id="unity-progress-bar-empty">
-      <div id="unity-progress-bar-full" style="width:0%;"></div>
-    </div>
-    <div id="dl-status" style="text-align:center;font-size:12px;color:rgba(255,255,255,.7);
-         font-family:sans-serif;margin-top:6px;letter-spacing:.4px;">Hazırlanıyor...</div>
-  </div>
-  <div id="unity-warning"></div>
-</div>
-
-<!-- YaGames STUB -->
-<script>
 window.YaGames = { init: function() {
   var sdk = {
     environment:{ app:{id:'0'}, i18n:{lang:'en',tld:'com'}, browser:{lang:'en'}, payload:null },
@@ -120,8 +93,11 @@ window.YaGames = { init: function() {
    CDN — değiştir
    ================================================================ */
 var CDN      = "Build";  /* <-- degistir */
+var DATA_FILE = "knockout[8]-mirraSDK[5.1.2].data.br";
 var WASM_FILE = "knockout[8]-mirraSDK[5.1.2].wasm.br";
-var WASM_PARTS = 15; 
+var DATA_PARTS = 5;  
+var WASM_PARTS = 15;  
+
 
 var sources           = {};
 var sourcesPlayOneShot= {};
@@ -226,7 +202,7 @@ function initializeUnity() {
   }
 
   var config = {
-    dataUrl:            CDN +"/knockout[8]-mirraSDK[5.1.2].data.br",
+    dataUrl:            _dataBlobUrl,
     frameworkUrl:       CDN + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
     codeUrl:            _wasmBlobUrl,
     streamingAssetsUrl: "StreamingAssets",
@@ -257,9 +233,6 @@ function initializeUnity() {
   };
   document.body.appendChild(script);
 }
-</script>
-</body>
-</html>
 </script>
   </body>
 </html>
