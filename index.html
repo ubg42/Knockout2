@@ -278,11 +278,9 @@ loadSplitFile: async function (basePath) {
 const config = {
     arguments: [],
 
-    // These are NOT split
     dataUrl: buildUrl + "/knockout[8]-mirraSDK[5.1.2].data.br",
     frameworkUrl: buildUrl + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
 
-    // Set this below after joining the WASM parts
     codeUrl: "",
 
     streamingAssetsUrl: "StreamingAssets",
@@ -299,17 +297,15 @@ const config = {
     }
 };
 
-// ONLY WASM is split
 const wasmBuffer = await this.loadSplitFile(
     buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br"
 );
 
 config.codeUrl = URL.createObjectURL(
     new Blob([wasmBuffer], {
-        type: "application/octet-stream"
+        type: "application/wasm"
     })
 );
-
         // Load split files
         const dataBuffer = await this.loadSplitFile(
             buildUrl + "/knockout[8]-mirraSDK[5.1.2].data.br"
@@ -351,12 +347,7 @@ config.codeUrl = URL.createObjectURL(
     // ... your other functions below ...
     
 
-    
-const wasmBuffer = await loadSplitFile(buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br");
 
-config.codeUrl = URL.createObjectURL(
-    new Blob([wasmBuffer], { type: "application/wasm" })
-);
 
         // By default Unity keeps WebGL canvas render target size matched with
         // the DOM size of the canvas element (scaled by window.devicePixelRatio)
