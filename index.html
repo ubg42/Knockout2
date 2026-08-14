@@ -23,293 +23,245 @@
     </div>
     <!-- Unity loader script -->
 <script>
-const unityApp = {
-    applyCommonFixes: function () {
-        // Add your common fixes here.
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>Unity WebGL Player | Drift No Limit</title>
+<link rel="shortcut icon" href="TemplateData/favicon.ico"/>
+<link rel="stylesheet" href="TemplateData/style.css"/>
+<!-- howler.js — CDN'den (Web Audio library, oyunun ihtiyacı) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+</head>
+<body>
+<div id="unity-container" style="position:absolute;width:100%;height:100%;left:0;top:0;">
+  <canvas id="unity-canvas" style="position:absolute;width:100%;height:100%;"></canvas>
+  <div id="unity-loading-bar">
+    <div id="unity-logo"></div>
+    <div id="unity-progress-bar-empty">
+      <div id="unity-progress-bar-full" style="width:0%;"></div>
+    </div>
+    <div id="dl-status" style="text-align:center;font-size:12px;color:rgba(255,255,255,.7);
+         font-family:sans-serif;margin-top:6px;letter-spacing:.4px;">Hazırlanıyor...</div>
+  </div>
+  <div id="unity-warning"></div>
+</div>
+
+<!-- YaGames STUB -->
+<script>
+window.YaGames = { init: function() {
+  var sdk = {
+    environment:{ app:{id:'0'}, i18n:{lang:'en',tld:'com'}, browser:{lang:'en'}, payload:null },
+    deviceInfo:{ type:'desktop',
+      isMobile:function(){return false;}, isDesktop:function(){return true;},
+      isTablet:function(){return false;}, isTV:function(){return false;}
     },
-
-    tryRotationLock() {
-        // Add your rotation lock here.
+    adv:{
+      showFullscreenAdv:function(o){
+        if(o&&o.callbacks&&o.callbacks.onClose) o.callbacks.onClose(false);
+      },
+      showRewardedVideo:function(o){
+        if(!o||!o.callbacks) return;
+        if(o.callbacks.onOpen)     o.callbacks.onOpen();
+        if(o.callbacks.onRewarded) o.callbacks.onRewarded();
+        if(o.callbacks.onClose)    o.callbacks.onClose();
+      },
+      showBannerAdv:function(){}, hideBannerAdv:function(){},
+      getBannerAdvStatus:function(){ return Promise.resolve({stickyAdvIsShowing:false}); }
     },
-
-    tryLockAspectRatio() {
-        // Add your aspect ratio code here.
+    auth:{ openAuthDialog:function(){ return Promise.resolve(); } },
+    feedback:{
+      canReview:function(){ return Promise.resolve({value:false,reason:''}); },
+      requestReview:function(){ return Promise.resolve({feedbackSent:false}); }
     },
-
-    loadSplitFile: async function (basePath) {
-        const chunks = [];
-        let totalLength = 0;
-
-        for (let part = 1; part <= 15; part++) {
-            const partName =
-                `${basePath}.part${String(part).padStart(2, "0")}`;
-
-            console.log(
-                `Loading part ${part}/15: ${partName}`
-            );
-
-            const response = await fetch(partName);
-
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to load ${partName}: ${response.status}`
-                );
-            }
-
-            const chunk = new Uint8Array(
-                await response.arrayBuffer()
-            );
-
-            chunks.push(chunk);
-            totalLength += chunk.length;
-        }
-
-        const merged = new Uint8Array(totalLength);
-
-        let offset = 0;
-
-        for (const chunk of chunks) {
-            merged.set(chunk, offset);
-            offset += chunk.length;
-        }
-
-        console.log(
-            `Combined ${chunks.length} parts: ${totalLength} bytes`
-        );
-
-        return merged.buffer;
+    shortcut:{
+      canShowPrompt:function(){ return Promise.resolve({canShow:false}); },
+      showPrompt:function(){ return Promise.resolve({outcome:'rejected'}); }
     },
-
-    startLoading: async function () {
-        const canvas =
-            document.querySelector("#unity-canvas");
-
-        const loadingBar =
-            document.querySelector("#unity-loading-bar");
-
-        const progressBarFull =
-            document.querySelector("#unity-progress-bar-full");
-
-        const buildUrl = "Build";
-
-        const loaderUrl =
-            `${buildUrl}/knockout[8]-mirraSDK[5.1.2].loader.js`;
-
-        const config = {
-            arguments: [],
-
-            dataUrl:
-                `${buildUrl}/knockout[8]-mirraSDK[5.1.2].data.br`,
-
-            frameworkUrl:
-                `${buildUrl}/knockout[8]-mirraSDK[5.1.2].framework.js.br`,
-
-            codeUrl: "",
-
-            streamingAssetsUrl: "StreamingAssets",
-
-            companyName: "DefaultCompany",
-            productName: "knockout",
-            productVersion: "0.1.0",
-
-            showBanner: (msg, type) => {
-                if (type === "error") {
-                    console.error(msg);
-                } else {
-                    console.warn(msg);
-                }
-            }
-        };
-
-        /*
-         * Load all 15 parts.
-         *
-         * IMPORTANT:
-         * These files currently appear to contain WAT text:
-         *
-         * 28 6d 6f 64 75 6c 65 0a
-         * ( m  o  d  u  l  e \n
-         *
-         * That is NOT a WASM binary.
-         */
-        const wasmBuffer = await this.loadSplitFile(
-            `${buildUrl}/knockout[8]-mirraSDK[5.1.2].wasm.br`
-        );
-
-        const bytes = new Uint8Array(wasmBuffer);
-
-        const header = Array.from(
-            bytes.slice(0, 16)
-        )
-            .map(b =>
-                b.toString(16).padStart(2, "0")
-            )
-            .join(" ");
-
-        const text = new TextDecoder().decode(
-            bytes.slice(0, 32)
-        );
-
-        console.log("Combined file header:", header);
-        console.log("Combined file text:", text);
-
-        /*
-         * A real WASM binary must begin with:
-         *
-         * 00 61 73 6d
-         *
-         * If it starts with:
-         *
-         * 28 6d 6f 64
-         *
-         * then it is WAT text and cannot be passed
-         * directly to WebAssembly.instantiate().
-         */
-        if (
-            bytes[0] !== 0x00 ||
-            bytes[1] !== 0x61 ||
-            bytes[2] !== 0x73 ||
-            bytes[3] !== 0x6d
-        ) {
-            throw new Error(
-                "The 15 parts do not contain a compiled WASM binary.\n\n" +
-                `Header: ${header}\n\n` +
-                `Text: ${text}`
-            );
-        }
-
-        /*
-         * Only reached when the file is actually WASM.
-         */
-        config.codeUrl = URL.createObjectURL(
-            new Blob(
-                [wasmBuffer],
-                {
-                    type: "application/wasm"
-                }
-            )
-        );
-
-        loadingBar.style.display = "block";
-
-        const script =
-            document.createElement("script");
-
-        script.src = loaderUrl;
-
-        script.onload = () => {
-            createUnityInstance(
-                canvas,
-                config,
-                (progress) => {
-                    progressBarFull.style.width =
-                        `${100 * progress}%`;
-                }
-            )
-                .then(() => {
-                    loadingBar.style.display = "none";
-                })
-                .catch((message) => {
-                    console.error(message);
-                    alert(message);
-                });
-        };
-
-        script.onerror = () => {
-            console.error(
-                `Failed to load Unity loader: ${loaderUrl}`
-            );
-        };
-
-        document.body.appendChild(script);
-    },
-
-    isMobile: function () {
-        return /iPhone|iPad|iPod|Android/i.test(
-            navigator.userAgent
-        );
-    },
-
-    isEmpty: function (value) {
-        return (
-            value === undefined ||
-            value === null ||
-            value === ""
-        );
-    },
-
-    toBoolean: function (value) {
-        return (
-            value === true ||
-            value === "true" ||
-            value === 1 ||
-            value === "1" ||
-            value === "True"
-        );
-    },
-
-    isNumber: function (value) {
-        return (
-            typeof value === "number" &&
-            !isNaN(value)
-        );
-    },
-
-    toNumber: function (value) {
-        function handleMathExpression(str) {
-            const mathMatch = str.match(
-                /^(\d*\.?\d+)\s*([+\-*/])\s*(\d*\.?\d+)$/
-            );
-
-            if (!mathMatch) {
-                return null;
-            }
-
-            const a = parseFloat(mathMatch[1]);
-            const operator = mathMatch[2];
-            const b = parseFloat(mathMatch[3]);
-
-            const operators = {
-                "+": (a, b) => a + b,
-                "-": (a, b) => a - b,
-                "*": (a, b) => a * b,
-                "/": (a, b) =>
-                    b !== 0 ? a / b : NaN
-            };
-
-            return operators[operator](a, b);
-        }
-
-        function convertToNumber(str) {
-            const num = parseFloat(str);
-            return isNaN(num) ? 0 : num;
-        }
-
-        if (this.isNumber(value)) {
-            return value;
-        }
-
-        if (this.isEmpty(value)) {
-            return 0;
-        }
-
-        const str = String(value).trim();
-
-        if (str === "") {
-            return 0;
-        }
-
-        return (
-            handleMathExpression(str) ||
-            convertToNumber(str)
-        );
+    getPayments:function(){ return Promise.reject('no payments'); },
+    getPlayer:function(){ return Promise.resolve({
+      isAuthorized:function(){return false;}, getMode:function(){return 'lite';},
+      getName:function(){return '';}, getUniqueID:function(){return '0';},
+      getPhoto:function(){return '';}, getPayingStatus:function(){return 'unknown';},
+      setData:function(){return Promise.resolve();}, getData:function(){return Promise.resolve({});}
+    });},
+    serverTime:function(){ return Promise.resolve(Date.now()); },
+    on:function(){},
+    features:{
+      LoadingAPI:{ready:function(){}},
+      GameplayAPI:{start:function(){},stop:function(){}}
     }
-};
+  };
+  return Promise.resolve(sdk);
+}};
+</script>
 
-unityApp.applyCommonFixes();
-unityApp.tryRotationLock();
-unityApp.tryLockAspectRatio();
-unityApp.startLoading();
+<!-- sdk.js stub yükle -->
+<script>
+(function(){ var s=document.createElement('script'); s.src='/sdk.js';
+  s.onerror=function(){console.warn('[Stub] sdk.js yuklenemedi');}; document.head.appendChild(s); })();
+
+(function(){
+  function u(){
+    if(window._au) return; window._au=true;
+    try{var c=new(window.AudioContext||window.webkitAudioContext)();
+      var b=c.createBuffer(1,1,22050);var s=c.createBufferSource();
+      s.buffer=b;s.connect(c.destination);s.start(0);c.resume&&c.resume();
+    }catch(e){}
+    ['touchstart','pointerdown','click'].forEach(function(t){document.removeEventListener(t,u);});
+  }
+  ['touchstart','pointerdown','click'].forEach(function(t){document.addEventListener(t,u,{passive:true});});
+})();
+</script>
+
+<script>
+/* ================================================================
+   CDN — değiştir
+   ================================================================ */
+var CDN      = "BURAYA_CDN/Build";  /* <-- degistir */
+var DATA_FILE = "knockout[8]-mirraSDK[5.1.2].data.br";
+var WASM_FILE = "knockout[8]-mirraSDK[5.1.2].wasm.br";
+var DATA_PARTS = 1;  
+var WASM_PARTS = 15; 
+
+var sources           = {};
+var sourcesPlayOneShot= {};
+var sdk;
+var MyGameInstance    = null;
+var _dataBlobUrl      = null;
+var _wasmBlobUrl      = null;
+var _partsReady       = false;
+
+var loadingBar    = document.querySelector("#unity-loading-bar");
+var progressFull  = document.querySelector("#unity-progress-bar-full");
+var dlStatus      = document.querySelector("#dl-status");
+
+loadingBar.style.display = "block";
+
+/* DATA 0-50%, WASM 50-90%, Unity 90-100% */
+function setBar(pct, label) {
+  progressFull.style.width = pct.toFixed(1) + '%';
+  if (dlStatus) dlStatus.textContent = label || '';
+}
+
+async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
+  var parts = [];
+  for (var i = 0; i < partCount; i++) {
+    setBar(barStart + (i/partCount)*(barEnd-barStart),
+           label+(i+1)+'/'+partCount+' ('+Math.round(barStart+(i/partCount)*(barEnd-barStart))+'%)');
+    var r = await fetch(baseUrl + '.part' + i);
+    if (!r.ok) throw new Error(label+'part'+i+' HTTP '+r.status);
+    parts.push(new Uint8Array(await r.arrayBuffer()));
+    setBar(barStart+((i+1)/partCount)*(barEnd-barStart),
+           label+(i+1)+'/'+partCount+' ('+Math.round(barStart+((i+1)/partCount)*(barEnd-barStart))+'%)');
+  }
+  var total = parts.reduce(function(s,p){return s+p.length;},0);
+  var merged = new Uint8Array(total); var off=0;
+  for(var j=0;j<parts.length;j++){merged.set(parts[j],off);off+=parts[j].length;}
+  return merged;
+}
+function brotliBlobUrl(uint8, filename){
+  var blob = new Blob([uint8],{type:'application/octet-stream'});
+  return URL.createObjectURL(blob)+'#'+encodeURIComponent(filename);
+}
+
+/* Part'ları önceden indir */
+async function preloadParts() {
+  try {
+    setBar(0,'Data indiriliyor...');
+    var dataBytes = await fetchParts(CDN+'/'+DATA_FILE, DATA_PARTS, 0,  50, 'Data indiriliyor... ');
+    _dataBlobUrl  = brotliBlobUrl(dataBytes, DATA_FILE);
+
+    var wasmBytes = await fetchParts(CDN+'/'+WASM_FILE, WASM_PARTS, 50, 90, 'WASM indiriliyor... ');
+    _wasmBlobUrl  = brotliBlobUrl(wasmBytes, WASM_FILE);
+
+    setBar(90, 'Oyun başlatılıyor...');
+    _partsReady = true;
+    console.log('[Drift] Parts ready, waiting for ad close...');
+  } catch(e) {
+    dlStatus.textContent = 'İndirme hatası: ' + e.message;
+    console.error(e);
+  }
+}
+
+/* SDK init + reklam — reklam kapanınca Unity başlar */
+YaGames.init().then(function(ysdk) {
+  console.log('Yandex SDK initialized');
+  window.ysdk = ysdk;
+  sdk = ysdk;
+
+  sdk.adv.showFullscreenAdv({callbacks:{
+    onClose:   function(){ closeAdFunction(); },
+    onError:   function(){ closeAdFunction(); },
+    onOffline: function(){ closeAdFunction(); }
+  }});
+});
+
+/* Paralel: SDK init + reklam + part indirme aynı anda */
+preloadParts();
+
+function closeAdFunction() {
+  console.log('[Drift] Ad closed');
+  if (_partsReady) {
+    initializeUnity();
+  } else {
+    /* Parts henüz bitmemiş, bitince Unity başlatılacak */
+    var iv = setInterval(function(){
+      if (_partsReady) { clearInterval(iv); initializeUnity(); }
+    }, 200);
+  }
+}
+
+function initializeUnity() {
+  var container     = document.querySelector("#unity-container");
+  var canvas        = document.querySelector("#unity-canvas");
+  var warningBanner = document.querySelector("#unity-warning");
+
+  function unityShowBanner(msg, type) {
+    function upd(){ warningBanner.style.display = warningBanner.children.length?'block':'none'; }
+    var div=document.createElement('div'); div.innerHTML=msg; warningBanner.appendChild(div);
+    if(type==='error') div.style='background:red;padding:10px;';
+    else { if(type==='warning') div.style='background:yellow;padding:10px;';
+      setTimeout(function(){ warningBanner.removeChild(div); upd(); },5000); }
+    upd();
+  }
+
+  var config = {
+    dataUrl:            _dataBlobUrl,
+    frameworkUrl:       CDN + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
+    codeUrl:            _wasmBlobUrl,
+    streamingAssetsUrl: "StreamingAssets",
+    companyName:        "Drift No Limit",
+    productName:        "Drift No Limit",
+    productVersion:     "90",
+    showBanner:         unityShowBanner
+  };
+
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    var meta=document.createElement('meta');
+    meta.name='viewport';
+    meta.content='width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes';
+    document.getElementsByTagName('head')[0].appendChild(meta);
+    container.className="unity-mobile";
+  }
+  canvas.style.width="100%"; canvas.style.height="100%";
+
+  var script=document.createElement("script");
+  script.src=CDN+"/knockout[8]-mirraSDK[5.1.2].loader.js";
+  script.onload=function(){
+    createUnityInstance(canvas, config, function(progress){
+      setBar(90+progress*10, progress<1?'Oyun yükleniyor... '+Math.round(90+progress*10)+'%':'');
+    }).then(function(inst){
+      MyGameInstance = inst;
+      loadingBar.style.display = "none";
+    }).catch(function(msg){ alert(msg); });
+  };
+  document.body.appendChild(script);
+}
+</script>
+</body>
+</html>
 </script>
   </body>
 </html>
