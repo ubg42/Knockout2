@@ -123,10 +123,15 @@ const unityApp = {
         };
 
         // Load the 15 WASM parts
-        const wasmBuffer = await this.loadSplitFile(
-            buildUrl +
-            "/knockout[8]-mirraSDK[5.1.2].wasm.br"
-        );
+const wasmBuffer = await this.loadSplitFile(
+    buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm"
+);
+
+config.codeUrl = URL.createObjectURL(
+    new Blob([wasmBuffer], {
+        type: "application/wasm"
+    })
+);
 
         // Make the combined WASM available to Unity
         config.codeUrl = URL.createObjectURL(
