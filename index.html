@@ -1,51 +1,29 @@
 <!DOCTYPE html>
-
 <html lang="en-us">
-<head>
-<meta charset="utf-8"/>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes"/>
-<!-- Page info and stylesheets -->
-<title>knockout</title>
-<link rel="shortcut icon" href="TemplateData/favicon.ico"/>
-<link rel="stylesheet" href="TemplateData/style.css"/>
-    <style>
-        #wasm-loading-text {
-    color: white;
-    font-family: Arial, sans-serif;
-    font-size: 16px;
-    text-align: center;
-    margin: 10px 0;
-}
-    </style>
-<link rel="manifest" href="manifest.webmanifest"/>
-</head>
-<body>
-    <div id="unity-loading-bar">
-    <div id="unity-logo"></div>
-
-    <div id="wasm-loading-text">
-        Loading WASM Part 0/15
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes" />
+    <!-- Page info and stylesheets -->
+    <title>knockout</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico" />
+    <link rel="stylesheet" href="TemplateData/style.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <!-- Unity canvas -->
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
     </div>
-
-    <div id="unity-progress-bar-empty">
-        <div id="unity-progress-bar-full"></div>
-    </div>
-</div>
-<!-- Unity canvas -->
-<div id="unity-container">
-<canvas id="unity-canvas" tabindex="-1"></canvas>
-<div id="unity-loading-bar">
-<div id="unity-logo"></div>
-<div id="unity-progress-bar-empty">
-<div id="unity-progress-bar-full"></div>
-</div>
-</div>
-</div>
-<!-- Unity loader script -->
-<script>
+    <!-- Unity loader script -->
+    <script>
 const unityApp = {
-
     applyCommonFixes: function () {
         // ...
     },
@@ -58,101 +36,106 @@ const unityApp = {
         // ...
     },
 
-loadSplitFile: async function (basePath) {
-    const chunks = [];
-    let totalLength = 0;
+    loadSplitFile: async function (basePath) {
+        const chunks = [];
+        let totalLength = 0;
 
-    const loadingText =
-        document.querySelector("#wasm-loading-text");
+        for (let part = 1; part <= 15; part++) {
+            const partName = `${basePath}.part${String(part).padStart(2, "0")}`;
 
-    const progressBarFull =
-        document.querySelector("#unity-progress-bar-full");
+            console.log(
+                `Loading WASM part ${part}/15: ${partName}`
+            );
 
-    for (let part = 1; part <= 15; part++) {
+            const response = await fetch(partName);
 
-        const partName =
-            `${basePath}.part${String(part).padStart(2, "0")}`;
-
-        // Update text
-        if (loadingText) {
-            loadingText.textContent =
-                `Loading WASM Part ${part}/15`;
-        }
-
-        console.log(
-            `Loading WASM Part ${part}/15: ${partName}`
-        );
-
-        const response = await fetch(partName);
-
-        if (!response.ok) {
-            if (loadingText) {
-                loadingText.textContent =
-                    `Failed to load WASM Part ${part}/15`;
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to load ${partName}: ${response.status}`
+                );
             }
 
-            throw new Error(
-                `Failed to load ${partName}: ${response.status}`
+            const chunk = new Uint8Array(
+                await response.arrayBuffer()
             );
+
+            chunks.push(chunk);
+            totalLength += chunk.length;
         }
 
-        const chunk = new Uint8Array(
-            await response.arrayBuffer()
-        );
+        const merged = new Uint8Array(totalLength);
 
-        chunks.push(chunk);
-        totalLength += chunk.length;
+        let offset = 0;
 
-        // Update progress bar
-        if (progressBarFull) {
-            progressBarFull.style.width =
-                `${(part / 15) * 100}%`;
+        for (const chunk of chunks) {
+            merged.set(chunk, offset);
+            offset += chunk.length;
         }
 
         console.log(
-            `Loaded WASM Part ${part}/15 (${chunk.length} bytes)`
+            `Successfully combined ${chunks.length} WASM parts (${totalLength} bytes)`
         );
-    }
 
-    // All parts downloaded
-    if (loadingText) {
-        loadingText.textContent =
-            "Combining WASM Parts...";
-    }
+        return merged.buffer;
+    },
 
-    console.log("Combining WASM Parts...");
+    startLoading: async function () {
+        const canvas = document.querySelector("#unity-canvas");
+        const loadingBar = document.querySelector("#unity-loading-bar");
+        const progressBarFull = document.querySelector(
+            "#unity-progress-bar-full"
+        );
 
-    const merged = new Uint8Array(totalLength);
+        const buildUrl = "Build";
 
-    let offset = 0;
+        const loaderUrl =
+            buildUrl +
+            "/knockout[8]-mirraSDK[5.1.2].loader.js";
 
-    for (const chunk of chunks) {
-        merged.set(chunk, offset);
-        offset += chunk.length;
-    }
+        const config = {
+            arguments: [],
 
-    if (loadingText) {
-        loadingText.textContent =
-            "WASM Parts Loaded";
-    }
+            dataUrl:
+                buildUrl +
+                "/knockout[8]-mirraSDK[5.1.2].data.br",
 
-    console.log(
-        `Successfully combined ${chunks.length}/15 WASM parts (${totalLength} bytes)`
-    );
+            frameworkUrl:
+                buildUrl +
+                "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
 
-    return merged.buffer;
-}
+            codeUrl: "",
 
-// Load the 15 WASM parts
-const wasmBuffer = await this.loadSplitFile(
-    buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br"
-);
+            streamingAssetsUrl: "StreamingAssets",
+
+            companyName: "DefaultCompany",
+
+            productName: "knockout",
+
+            productVersion: "0.1.0",
+
+            showBanner: (msg, type) => {
+                if (type === "error") {
+                    console.error(msg);
+                } else {
+                    console.warn(msg);
+                }
+            }
+        };
+
+        // Load the 15 WASM parts
+        const wasmBuffer = await this.loadSplitFile(
+            buildUrl +
+            "/knockout[8]-mirraSDK[5.1.2].wasm.br"
+        );
 
         // Make the combined WASM available to Unity
         config.codeUrl = URL.createObjectURL(
-            new Blob([wasmBuffer], {
-                type: "application/wasm"
-            })
+            new Blob(
+                [wasmBuffer],
+                {
+                    type: "application/wasm"
+                }
+            )
         );
 
         const matchWebGLToCanvasSize = "";
@@ -178,6 +161,7 @@ const wasmBuffer = await this.loadSplitFile(
         loadingBar.style.display = "block";
 
         const script = document.createElement("script");
+
         script.src = loaderUrl;
 
         script.onload = () => {
@@ -189,58 +173,68 @@ const wasmBuffer = await this.loadSplitFile(
                         100 * progress + "%";
                 }
             )
-            .then(() => {
-                loadingBar.style.display = "none";
-            })
-            .catch((message) => {
-                console.error(message);
-                alert(message);
-            });
+                .then(() => {
+                    loadingBar.style.display = "none";
+                })
+                .catch((message) => {
+                    console.error(message);
+                    alert(message);
+                });
         };
 
         document.body.appendChild(script);
     },
 
     isMobile: function () {
-        return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        return /iPhone|iPad|iPod|Android/i.test(
+            navigator.userAgent
+        );
     },
 
     isEmpty: function (value) {
-        return value === undefined ||
+        return (
+            value === undefined ||
             value === null ||
-            value === "";
+            value === ""
+        );
     },
 
     toBoolean: function (value) {
-        return value === true ||
+        return (
+            value === true ||
             value === "true" ||
             value === 1 ||
             value === "1" ||
-            value === "True";
+            value === "True"
+        );
     },
 
     isNumber: function (value) {
-        return typeof value === "number" && !isNaN(value);
+        return (
+            typeof value === "number" &&
+            !isNaN(value)
+        );
     },
 
     toNumber: function (value) {
         function handleMathExpression(str) {
-            const mathMatch =
-                str.match(
-                    /^(\d*\.?\d+)\s*([+\-*/])\s*(\d*\.?\d+)$/
-                );
+            const mathMatch = str.match(
+                /^(\d*\.?\d+)\s*([+\-*/])\s*(\d*\.?\d+)$/
+            );
 
-            if (!mathMatch) return null;
+            if (!mathMatch) {
+                return null;
+            }
 
             const a = parseFloat(mathMatch[1]);
             const operator = mathMatch[2];
             const b = parseFloat(mathMatch[3]);
 
             const operators = {
-                '+': (a, b) => a + b,
-                '-': (a, b) => a - b,
-                '*': (a, b) => a * b,
-                '/': (a, b) =>
+                "+": (a, b) => a + b,
+                "-": (a, b) => a - b,
+                "*": (a, b) => a * b,
+                "/": (a, b) =>
                     b !== 0 ? a / b : NaN
             };
 
@@ -249,15 +243,23 @@ const wasmBuffer = await this.loadSplitFile(
 
         function convertToNumber(str) {
             const num = parseFloat(str);
+
             return isNaN(num) ? 0 : num;
         }
 
-        if (this.isNumber(value)) return value;
-        if (this.isEmpty(value)) return 0;
+        if (this.isNumber(value)) {
+            return value;
+        }
+
+        if (this.isEmpty(value)) {
+            return 0;
+        }
 
         const str = String(value).trim();
 
-        if (str === "") return 0;
+        if (str === "") {
+            return 0;
+        }
 
         return (
             handleMathExpression(str) ||
@@ -271,5 +273,5 @@ unityApp.tryRotationLock();
 unityApp.tryLockAspectRatio();
 unityApp.startLoading();
 </script>
-</body>
+  </body>
 </html>
