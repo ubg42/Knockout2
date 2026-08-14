@@ -144,16 +144,9 @@ loadSplitFile: async function (basePath) {
 }
 
 // Load the 15 WASM parts
-let wasmBuffer;
-
-try {
-    wasmBuffer = await this.loadSplitFile(
-        buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br"
-    );
-} catch (error) {
-    console.error("WASM part loading failed:", error);
-    return;
-}
+const wasmBuffer = await this.loadSplitFile(
+    buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br"
+);
 
         // Make the combined WASM available to Unity
         config.codeUrl = URL.createObjectURL(
