@@ -144,7 +144,7 @@ function brotliBlobUrl(uint8, filename){
 async function preloadParts() {
   try {
     setBar(0,'Data indiriliyor...');
-    var dataBytes = await fetchParts(CDN+'/'+DATA_FILE, DATA_PARTS, 0,  50, 'Data indiriliyor... ');
+    var dataBytes = await fetchParts(CDN+'/'+DATA_FILE, DATA_PARTS, 1,  50, 'Data indiriliyor... ');
     _dataBlobUrl  = brotliBlobUrl(dataBytes, DATA_FILE);
 
     var wasmBytes = await fetchParts(CDN+'/'+WASM_FILE, WASM_PARTS, 50, 90, 'WASM indiriliyor... ');
