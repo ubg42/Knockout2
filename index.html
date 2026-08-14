@@ -126,19 +126,13 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
     var partNumber = String(i).padStart(2, '0');
     var partUrl = baseUrl + '.part' + partNumber;
 
-    setBar(
-      barStart + ((i - 1) / partCount) * (barEnd - barStart),
-      label + partNumber + '/' + String(partCount).padStart(2, '0') +
-      ' (' + Math.round(barStart + ((i - 1) / partCount) * (barEnd - barStart)) + '%)'
-    );
-
     console.log('[Parts] Loading:', partUrl);
 
     var r = await fetch(partUrl);
 
     if (!r.ok) {
       throw new Error(
-        label + 'part' + partNumber + ' HTTP ' + r.status
+        'Failed to load ' + partUrl + ' (HTTP ' + r.status + ')'
       );
     }
 
@@ -146,26 +140,24 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 
     setBar(
       barStart + (i / partCount) * (barEnd - barStart),
-      label + partNumber + '/' + String(partCount).padStart(2, '0') +
-      ' (' + Math.round(barStart + (i / partCount) * (barEnd - barStart)) + '%)'
+      label + partNumber + '/' + String(partCount).padStart(2, '0')
     );
   }
 
-  var total = parts.reduce(function (s, p) {
-    return s + p.length;
+  var total = parts.reduce(function (sum, part) {
+    return sum + part.length;
   }, 0);
 
   var merged = new Uint8Array(total);
-  var off = 0;
+  var offset = 0;
 
   for (var j = 0; j < parts.length; j++) {
-    merged.set(parts[j], off);
-    off += parts[j].length;
+    merged.set(parts[j], offset);
+    offset += parts[j].length;
   }
 
   return merged;
 }
-
 /* Part'ları önceden indir */
 async function preloadParts() {
   try {
