@@ -9,9 +9,29 @@
 <title>knockout</title>
 <link rel="shortcut icon" href="TemplateData/favicon.ico"/>
 <link rel="stylesheet" href="TemplateData/style.css"/>
+    <style>
+        #wasm-loading-text {
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    text-align: center;
+    margin: 10px 0;
+}
+    </style>
 <link rel="manifest" href="manifest.webmanifest"/>
 </head>
 <body>
+    <div id="unity-loading-bar">
+    <div id="unity-logo"></div>
+
+    <div id="wasm-loading-text">
+        Loading WASM Part 0/15
+    </div>
+
+    <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+    </div>
+</div>
 <!-- Unity canvas -->
 <div id="unity-container">
 <canvas id="unity-canvas" tabindex="-1"></canvas>
@@ -38,84 +58,90 @@ const unityApp = {
         // ...
     },
 
-    loadSplitFile: async function (basePath) {
-        const chunks = [];
-        let totalLength = 0;
+loadSplitFile: async function (basePath) {
+    const chunks = [];
+    let totalLength = 0;
 
-        for (let part = 1; part <= 15; part++) {
-            const partName =
-                `${basePath}.part${String(part).padStart(2, "0")}`;
+    const loadingText =
+        document.querySelector("#wasm-loading-text");
 
-            console.log(`Loading WASM part ${part}/15: ${partName}`);
+    const progressBarFull =
+        document.querySelector("#unity-progress-bar-full");
 
-            const response = await fetch(partName);
+    for (let part = 1; part <= 15; part++) {
 
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to load ${partName}: ${response.status}`
-                );
-            }
+        const partName =
+            `${basePath}.part${String(part).padStart(2, "0")}`;
 
-            const chunk = new Uint8Array(
-                await response.arrayBuffer()
-            );
-
-            chunks.push(chunk);
-            totalLength += chunk.length;
-        }
-
-        const merged = new Uint8Array(totalLength);
-
-        let offset = 0;
-
-        for (const chunk of chunks) {
-            merged.set(chunk, offset);
-            offset += chunk.length;
+        // Update text
+        if (loadingText) {
+            loadingText.textContent =
+                `Loading WASM Part ${part}/15`;
         }
 
         console.log(
-            `Successfully combined ${chunks.length} WASM parts (${totalLength} bytes)`
+            `Loading WASM Part ${part}/15: ${partName}`
         );
 
-        return merged.buffer;
-    },
+        const response = await fetch(partName);
 
-    startLoading: async function () {
-        const canvas = document.querySelector("#unity-canvas");
-        const loadingBar =
-            document.querySelector("#unity-loading-bar");
-        const progressBarFull =
-            document.querySelector("#unity-progress-bar-full");
-
-        const buildUrl = "Build";
-
-        const loaderUrl =
-            buildUrl + "/knockout[8]-mirraSDK[5.1.2].loader.js";
-
-        const config = {
-            arguments: [],
-
-            dataUrl:
-                buildUrl + "/knockout[8]-mirraSDK[5.1.2].data.br",
-
-            frameworkUrl:
-                buildUrl + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
-
-            codeUrl: "",
-
-            streamingAssetsUrl: "StreamingAssets",
-            companyName: "DefaultCompany",
-            productName: "knockout",
-            productVersion: "0.1.0",
-
-            showBanner: (msg, type) => {
-                if (type === "error") {
-                    console.error(msg);
-                } else {
-                    console.warn(msg);
-                }
+        if (!response.ok) {
+            if (loadingText) {
+                loadingText.textContent =
+                    `Failed to load WASM Part ${part}/15`;
             }
-        };
+
+            throw new Error(
+                `Failed to load ${partName}: ${response.status}`
+            );
+        }
+
+        const chunk = new Uint8Array(
+            await response.arrayBuffer()
+        );
+
+        chunks.push(chunk);
+        totalLength += chunk.length;
+
+        // Update progress bar
+        if (progressBarFull) {
+            progressBarFull.style.width =
+                `${(part / 15) * 100}%`;
+        }
+
+        console.log(
+            `Loaded WASM Part ${part}/15 (${chunk.length} bytes)`
+        );
+    }
+
+    // All parts downloaded
+    if (loadingText) {
+        loadingText.textContent =
+            "Combining WASM Parts...";
+    }
+
+    console.log("Combining WASM Parts...");
+
+    const merged = new Uint8Array(totalLength);
+
+    let offset = 0;
+
+    for (const chunk of chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    if (loadingText) {
+        loadingText.textContent =
+            "WASM Parts Loaded";
+    }
+
+    console.log(
+        `Successfully combined ${chunks.length}/15 WASM parts (${totalLength} bytes)`
+    );
+
+    return merged.buffer;
+},
 
         // Load the 15 WASM parts
         const wasmBuffer = await this.loadSplitFile(
