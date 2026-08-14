@@ -119,10 +119,8 @@ window.YaGames = { init: function() {
 /* ================================================================
    CDN — değiştir
    ================================================================ */
-var CDN      = "BURAYA_CDN/Build";  /* <-- degistir */
-var DATA_FILE = "knockout[8]-mirraSDK[5.1.2].data.br";
+var CDN      = "Build";  /* <-- degistir */
 var WASM_FILE = "knockout[8]-mirraSDK[5.1.2].wasm.br";
-var DATA_PARTS = 1;  
 var WASM_PARTS = 15; 
 
 var sources           = {};
@@ -228,7 +226,7 @@ function initializeUnity() {
   }
 
   var config = {
-    dataUrl:            _dataBlobUrl,
+    dataUrl:            CDN +"/knockout[8]-mirraSDK[5.1.2].data.br",
     frameworkUrl:       CDN + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
     codeUrl:            _wasmBlobUrl,
     streamingAssetsUrl: "StreamingAssets",
