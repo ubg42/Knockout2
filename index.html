@@ -215,57 +215,53 @@
     },
 
 
-    loadSplitFile: async function (basePath) {
-        const chunks = [];
-        let totalLength = 0;
-        let part = 1;
+loadSplitFile: async function (basePath) {
+    const chunks = [];
+    let totalLength = 0;
 
-        while (true) {
-            const partName =
-                `${basePath}.part${String(part).padStart(2, "0")}`;
+    // Load exactly 15 parts
+    for (let part = 1; part <= 15; part++) {
+        const partName =
+            `${basePath}.part${String(part).padStart(2, "0")}`;
 
-            console.log("Loading:", partName);
+        console.log(`Loading WASM part ${part}/15: ${partName}`);
 
-            const response = await fetch(partName);
+        const response = await fetch(partName);
 
-            if (response.status === 404) {
-                break;
-            }
-
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to load ${partName}: ${response.status}`
-                );
-            }
-
-            const chunk = new Uint8Array(
-                await response.arrayBuffer()
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load ${partName}: ${response.status}`
             );
-
-            chunks.push(chunk);
-            totalLength += chunk.length;
-            part++;
         }
 
-        if (chunks.length === 0) {
-            throw new Error(`No split parts found for ${basePath}`);
-        }
-
-        const merged = new Uint8Array(totalLength);
-
-        let offset = 0;
-
-        for (const chunk of chunks) {
-            merged.set(chunk, offset);
-            offset += chunk.length;
-        }
-
-        console.log(
-            `Loaded ${chunks.length} parts for ${basePath}`
+        const chunk = new Uint8Array(
+            await response.arrayBuffer()
         );
 
-        return merged.buffer;
-    },
+        chunks.push(chunk);
+        totalLength += chunk.length;
+
+        console.log(
+            `Loaded part ${part}/15 (${chunk.length} bytes)`
+        );
+    }
+
+    // Combine all 15 parts
+    const merged = new Uint8Array(totalLength);
+
+    let offset = 0;
+
+    for (const chunk of chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    console.log(
+        `Successfully combined ${chunks.length} WASM parts (${totalLength} bytes)`
+    );
+
+    return merged.buffer;
+},
 
 
     startLoading: async function () {
@@ -355,36 +351,7 @@ config.codeUrl = URL.createObjectURL(
     // ... your other functions below ...
     
 
-    startLoading: async function () {
-        const canvas = document.querySelector("#unity-canvas");
-        const loadingBar = document.querySelector("#unity-loading-bar");
-        const progressBarFull = document.querySelector("#unity-progress-bar-full");
-
-        const buildUrl = "Build";
-        const loaderUrl = buildUrl + "/knockout[8]-mirraSDK[5.1.2].loader.js";
-        const config = {
-            arguments: [],
-           dataUrl: "knockout[8]-mirraSDK[5.1.2].data.br",
-           frameworkUrl: "knockout[8]-mirraSDK[5.1.2].framework.js.br",
-           codeUrl: "",
-            streamingAssetsUrl: "StreamingAssets",
-            companyName: "DefaultCompany",
-            productName: "knockout",
-            productVersion: "0.1.0",
-            showBanner: (msg, type) => {
-                switch (type) {
-                    case 'error': {
-                        console.error(msg);
-                        break;
-                    }
-                    default: {
-                        console.warn(msg);
-                        break;
-                    }
-                }
-            },
-        };
-
+    
 const wasmBuffer = await loadSplitFile(buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br");
 
 config.codeUrl = URL.createObjectURL(
