@@ -162,7 +162,9 @@ async function loadFile(fileInfo, rowIdPrefix) {
 
   const numParts = count;
   const rowIds = [];
+  const blobs = [];
 
+  // Create all progress bars
   for (let i = 1; i <= numParts; i++) {
     const rowId = `${rowIdPrefix}_${i}`;
 
@@ -174,8 +176,7 @@ async function loadFile(fileInfo, rowIdPrefix) {
     );
   }
 
-  const blobs = [];
-
+  // Download each part
   for (let i = 1; i <= numParts; i++) {
     const rowId = rowIds[i - 1];
     const partNumber = String(i).padStart(digits, "0");
@@ -195,29 +196,30 @@ async function loadFile(fileInfo, rowIdPrefix) {
     blobs.push(blob);
   }
 
-  // Combine all parts
+  // Combine the parts
   const combinedBlob = new Blob(blobs);
 
-  // DEBUG: inspect the assembled file
-  const testBytes = new Uint8Array(
-    await combinedBlob.arrayBuffer()
-  );
+  // DEBUG WITHOUT await
+  combinedBlob.arrayBuffer().then(function(buffer) {
+    const testBytes = new Uint8Array(buffer);
 
-  console.log(
-    `[${label}] First bytes:`,
-    Array.from(testBytes.slice(0, 16))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join(" ")
-  );
+    console.log(
+      `[${label}] First bytes:`,
+      Array.from(testBytes.slice(0, 16))
+        .map(function(b) {
+          return b.toString(16).padStart(2, "0");
+        })
+        .join(" ")
+    );
 
-  console.log(
-    `[${label}] First text:`,
-    new TextDecoder().decode(testBytes.slice(0, 50))
-  );
+    console.log(
+      `[${label}] First text:`,
+      new TextDecoder().decode(testBytes.slice(0, 50))
+    );
+  });
 
   return combinedBlob;
 }
-
 const combinedBlob = new Blob(blobs);
 
 // DEBUG
@@ -238,9 +240,6 @@ combinedBlob.arrayBuffer().then(buffer => {
 });
 
 return combinedBlob;
-
-// DEBUG: inspect the assembled file
-const testBytes = new Uint8Array(await blob.arrayBuffer());
 
 console.log(
   `[${PART_FILES[i].label}] First bytes:`,
