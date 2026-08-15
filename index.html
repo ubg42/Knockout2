@@ -158,62 +158,58 @@ const PART_FILES = [
       }
 
 async function loadFile(fileInfo, rowIdPrefix) {
-  const { base, label, digits, count } = fileInfo;
+    const { base, label, digits, count } = fileInfo;
 
-  const rowIds = [];
-  const blobs = [];
+    const blobs = [];
 
-  // Create all progress bars first
-  for (let i = 1; i <= count; i++) {
-    const rowId = `${rowIdPrefix}_${i}`;
-    rowIds.push(rowId);
+    for (let i = 1; i <= count; i++) {
+        const rowId = `${rowIdPrefix}_${i}`;
 
-    makePartRow(
-      rowId,
-      `${label} — part ${i} of ${count}`
+        makePartRow(
+            rowId,
+            `${label} — part ${i} of ${count}`
+        );
+
+        const partNumber = String(i).padStart(digits, "0");
+        const url = `${base}.part${partNumber}`;
+
+        setStatus(rowId, "Downloading...");
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Failed to download ${url}: HTTP ${response.status}`);
+        }
+
+        const data = await response.arrayBuffer();
+
+        blobs.push(new Uint8Array(data));
+
+        setBar(rowId, 100);
+        setStatus(rowId, "Finished");
+    }
+
+    // Join the parts in order
+    const combined = new Blob(blobs);
+
+    // Check the beginning of the reconstructed file
+    const buffer = await combined.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    console.log(`[${label}] size:`, bytes.length);
+    console.log(
+        `[${label}] first bytes:`,
+        Array.from(bytes.slice(0, 16))
+            .map(b => b.toString(16).padStart(2, "0"))
+            .join(" ")
     );
-  }
 
-  // Download each PineTools part in order
-  for (let i = 1; i <= count; i++) {
-    const rowId = rowIds[i - 1];
+    console.log(
+        `[${label}] first text:`,
+        new TextDecoder().decode(bytes.slice(0, 50))
+    );
 
-    const partNumber = String(i).padStart(digits, "0");
-    const url = `${base}.part${partNumber}`;
-
-    setStatus(rowId, "Downloading...");
-
-    const blob = await fetchPart(url, (p) => {
-      const percent = Math.round(p * 100);
-
-      setBar(rowId, percent);
-      setStatus(rowId, percent + "%");
-    });
-
-    setBar(rowId, 100);
-    setStatus(rowId, "Finished");
-
-    blobs.push(blob);
-  }
-
-  // Join the PineTools pieces in the correct order
-  const combinedBlob = new Blob(blobs);
-
-  const testBytes = new Uint8Array(
-  await combinedBlob.arrayBuffer()
-);
-
-console.log(
-  `[${label}] First bytes:`,
-  Array.from(testBytes.slice(0, 16))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join(" ")
-);
-
-  // DEBUG
-  const buffer = await combinedBlob.arrayBuffer();
-
-  return combinedBlob;
+    return combined;
 }
 
 
@@ -296,13 +292,11 @@ function startUnity() {
         var buildUrl = "Build";
         var loaderUrl = buildUrl + "/knockout[8]-mirraSDK[5.1.2].loader.js";
         var config = {
-          dataUrl:
-            assembledBlobs["Build/knockout[8]-mirraSDK[5.1.2].data.br"] ||
-            buildUrl + "/knockout[8]-mirraSDK[5.1.2].data.br",
+dataUrl:
+  assembledBlobs["Build/knockout[8]-mirraSDK[5.1.2].data.br"],
           frameworkUrl: buildUrl + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
           codeUrl:
-            assembledBlobs["Build/knockout[8]-mirraSDK[5.1.2].wasm.br"] ||
-            buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br",
+  assembledBlobs["Build/knockout[8]-mirraSDK[5.1.2].wasm.br"],
           streamingAssetsUrl: "StreamingAssets",
           companyName: "The Interviewed",
           productName: "CheeseRolling",
