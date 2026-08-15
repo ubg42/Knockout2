@@ -79,16 +79,17 @@
 const PART_FILES = [
   {
     base: "Build/knockout[8]-mirraSDK[5.1.2].data.br",
-    label: "CheeseRolling.data",
-    digits: 1
+    label: "CheeseRolling.data.br",
+    digits: 1,
+    count: 5
   },
   {
     base: "Build/knockout[8]-mirraSDK[5.1.2].wasm.br",
     label: "CheeseRolling.wasm.br",
-    digits: 2
+    digits: 2,
+    count: 15
   }
 ];
-
       const assembledBlobs = {};
 
       const partsList = document.getElementById("parts-list");
@@ -151,32 +152,47 @@ const PART_FILES = [
       }
 
 async function loadFile(fileInfo, rowIdPrefix) {
-  const { base, label, digits } = fileInfo;
-        const numParts = await countParts(base);
+  const { base, label, digits, count } = fileInfo;
 
-        const rowIds = [];
-        for (let i = 1; i <= numParts; i++) {
-          const rowId = `${rowIdPrefix}_${i}`;
-          rowIds.push(rowId);
-          makePartRow(rowId, `${label} — part ${i} of ${numParts}`);
-        }
+  const numParts = count;
 
-        const blobs = [];
-        for (let i = 1; i <= numParts; i++) {
-          const rowId = rowIds[i - 1];
-          const url = `${base}.part${String(i).padStart(digits, "0")}`;
-          setStatus(rowId, "downloading...");
-          const blob = await fetchPart(url, (p) => {
-            setBar(rowId, Math.round(p * 100));
-            setStatus(rowId, Math.round(p * 100) + "%");
-          });
-          setBar(rowId, 100);
-          setStatus(rowId, "cheezy done");
-          blobs.push(blob);
-        }
+  const rowIds = [];
 
-        return new Blob(blobs);
-      }
+  for (let i = 1; i <= numParts; i++) {
+    const rowId = `${rowIdPrefix}_${i}`;
+
+    rowIds.push(rowId);
+
+    makePartRow(
+      rowId,
+      `${label} — part ${i} of ${numParts}`
+    );
+  }
+
+  const blobs = [];
+
+  for (let i = 1; i <= numParts; i++) {
+    const rowId = rowIds[i - 1];
+
+    const partNumber = String(i).padStart(digits, "0");
+
+    const url = `${base}.part${partNumber}`;
+
+    setStatus(rowId, "downloading...");
+
+    const blob = await fetchPart(url, (p) => {
+      setBar(rowId, Math.round(p * 100));
+      setStatus(rowId, Math.round(p * 100) + "%");
+    });
+
+    setBar(rowId, 100);
+    setStatus(rowId, "Finished Loading...");
+
+    blobs.push(blob);
+  }
+
+  return new Blob(blobs);
+}
 
       async function loadAllParts() {
         try {
