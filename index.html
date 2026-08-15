@@ -164,10 +164,9 @@ async function loadFile(fileInfo, rowIdPrefix) {
   const rowIds = [];
   const blobs = [];
 
-  // Create all progress bars
+  // Create progress bars
   for (let i = 1; i <= numParts; i++) {
     const rowId = `${rowIdPrefix}_${i}`;
-
     rowIds.push(rowId);
 
     makePartRow(
@@ -176,11 +175,10 @@ async function loadFile(fileInfo, rowIdPrefix) {
     );
   }
 
-  // Download each part
+  // Download parts
   for (let i = 1; i <= numParts; i++) {
     const rowId = rowIds[i - 1];
     const partNumber = String(i).padStart(digits, "0");
-
     const url = `${base}.part${partNumber}`;
 
     setStatus(rowId, "downloading...");
@@ -196,10 +194,10 @@ async function loadFile(fileInfo, rowIdPrefix) {
     blobs.push(blob);
   }
 
-  // Combine the parts
+  // Combine all parts
   const combinedBlob = new Blob(blobs);
 
-  // DEBUG WITHOUT await
+  // Debug the assembled file
   combinedBlob.arrayBuffer().then(function(buffer) {
     const testBytes = new Uint8Array(buffer);
 
@@ -220,26 +218,36 @@ async function loadFile(fileInfo, rowIdPrefix) {
 
   return combinedBlob;
 }
-const combinedBlob = new Blob(blobs);
 
-// DEBUG
-combinedBlob.arrayBuffer().then(buffer => {
-  const testBytes = new Uint8Array(buffer);
 
-  console.log(
-    `[${label}] First bytes:`,
-    Array.from(testBytes.slice(0, 16))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join(" ")
-  );
+async function loadAllParts() {
+  try {
+    for (let i = 0; i < PART_FILES.length; i++) {
 
-  console.log(
-    `[${label}] First text:`,
-    new TextDecoder().decode(testBytes.slice(0, 50))
-  );
-});
+      overallStatus.textContent =
+        `LOADING ${PART_FILES[i].label}...`;
 
-return combinedBlob;
+      const blob = await loadFile(
+        PART_FILES[i],
+        "file" + i
+      );
+
+      assembledBlobs[PART_FILES[i].base] =
+        URL.createObjectURL(blob);
+    }
+
+    overallStatus.textContent = "chhese";
+
+    setTimeout(startUnity, 600);
+
+  } catch (e) {
+
+    overallStatus.textContent =
+      "it broke!111! " + e.message;
+
+    console.error(e);
+  }
+}
 
 console.log(
   `[${PART_FILES[i].label}] First bytes:`,
