@@ -76,10 +76,18 @@
     </div>
     <!-- Unity loader script -->
 <script>
-      const PART_FILES = [
-        { base: "Build/knockout[8]-mirraSDK[5.1.2].data", label: "CheeseRolling.data" },
-        { base: "Build/knockout[8]-mirraSDK[5.1.2].wasm.br", label: "CheeseRolling.wasm.br" },
-      ];
+const PART_FILES = [
+  {
+    base: "Build/knockout[8]-mirraSDK[5.1.2].data",
+    label: "CheeseRolling.data",
+    digits: 1
+  },
+  {
+    base: "Build/knockout[8]-mirraSDK[5.1.2].wasm.br",
+    label: "CheeseRolling.wasm.br",
+    digits: 2
+  }
+];
 
       const assembledBlobs = {};
 
@@ -108,7 +116,7 @@
       async function countParts(base) {
         let n = 1;
         while (true) {
-          const partName = `${base}.part${String(n).padStart(3, "0")}`;
+          const partName = `${base}.part${String(n).padStart(digits, "0")}`;
           const res = await fetch(partName, { method: "HEAD" });
           if (!res.ok) break;
           n++;
@@ -136,8 +144,8 @@
         return new Blob(chunks);
       }
 
-      async function loadFile(fileInfo, rowIdPrefix) {
-        const { base, label } = fileInfo;
+async function loadFile(fileInfo, rowIdPrefix) {
+  const { base, label, digits } = fileInfo;
         const numParts = await countParts(base);
 
         const rowIds = [];
@@ -150,7 +158,7 @@
         const blobs = [];
         for (let i = 1; i <= numParts; i++) {
           const rowId = rowIds[i - 1];
-          const url = `${base}.part${String(i).padStart(3, "0")}`;
+          const url = `${base}.part${String(i).padStart(digits, "0")}`;
           setStatus(rowId, "downloading...");
           const blob = await fetchPart(url, (p) => {
             setBar(rowId, Math.round(p * 100));
