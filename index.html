@@ -210,10 +210,15 @@ async function loadFile(fileInfo, rowIdPrefix) {
         }
       }
 
-      function startUnity() {
-        document.getElementById("part-loader").style.display = "none";
-        document.getElementById("unity-container").style.display = "";
+function startUnity() {
+  const partLoader = document.getElementById("part-loader");
+  const unityContainer = document.getElementById("unity-container");
 
+  partLoader.style.display = "none";
+  unityContainer.style.display = "block";
+
+  // ...rest of your existing startUnity code...
+  
         window.addEventListener("load", function () {
           if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("ServiceWorker.js");
