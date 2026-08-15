@@ -160,61 +160,60 @@ const PART_FILES = [
 async function loadFile(fileInfo, rowIdPrefix) {
   const { base, label, digits, count } = fileInfo;
 
-  const numParts = count;
   const rowIds = [];
   const blobs = [];
 
-  // Create progress bars
-  for (let i = 1; i <= numParts; i++) {
+  // Create all progress bars first
+  for (let i = 1; i <= count; i++) {
     const rowId = `${rowIdPrefix}_${i}`;
     rowIds.push(rowId);
 
     makePartRow(
       rowId,
-      `${label} — part ${i} of ${numParts}`
+      `${label} — part ${i} of ${count}`
     );
   }
 
-  // Download parts
-  for (let i = 1; i <= numParts; i++) {
+  // Download each PineTools part in order
+  for (let i = 1; i <= count; i++) {
     const rowId = rowIds[i - 1];
+
     const partNumber = String(i).padStart(digits, "0");
     const url = `${base}.part${partNumber}`;
 
-    setStatus(rowId, "downloading...");
+    setStatus(rowId, "Downloading...");
 
     const blob = await fetchPart(url, (p) => {
-      setBar(rowId, Math.round(p * 100));
-      setStatus(rowId, Math.round(p * 100) + "%");
+      const percent = Math.round(p * 100);
+
+      setBar(rowId, percent);
+      setStatus(rowId, percent + "%");
     });
 
     setBar(rowId, 100);
-    setStatus(rowId, "Finished Loading...");
+    setStatus(rowId, "Finished");
 
     blobs.push(blob);
   }
 
-  // Combine all parts
+  // Join the PineTools pieces in the correct order
   const combinedBlob = new Blob(blobs);
 
-  // Debug the assembled file
-  combinedBlob.arrayBuffer().then(function(buffer) {
-    const testBytes = new Uint8Array(buffer);
+  // DEBUG
+  const buffer = await combinedBlob.arrayBuffer();
+  const testBytes = new Uint8Array(buffer);
 
-    console.log(
-      `[${label}] First bytes:`,
-      Array.from(testBytes.slice(0, 16))
-        .map(function(b) {
-          return b.toString(16).padStart(2, "0");
-        })
-        .join(" ")
-    );
+  console.log(
+    `[${label}] First bytes:`,
+    Array.from(testBytes.slice(0, 16))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join(" ")
+  );
 
-    console.log(
-      `[${label}] First text:`,
-      new TextDecoder().decode(testBytes.slice(0, 50))
-    );
-  });
+  console.log(
+    `[${label}] First text:`,
+    new TextDecoder().decode(testBytes.slice(0, 50))
+  );
 
   return combinedBlob;
 }
@@ -224,44 +223,33 @@ async function loadAllParts() {
   try {
     for (let i = 0; i < PART_FILES.length; i++) {
 
+      const fileInfo = PART_FILES[i];
+
       overallStatus.textContent =
-        `LOADING ${PART_FILES[i].label}...`;
+        `LOADING ${fileInfo.label}...`;
 
       const blob = await loadFile(
-        PART_FILES[i],
+        fileInfo,
         "file" + i
       );
 
-      assembledBlobs[PART_FILES[i].base] =
+      assembledBlobs[fileInfo.base] =
         URL.createObjectURL(blob);
     }
 
-    overallStatus.textContent = "chhese";
+    overallStatus.textContent = "Finished loading all parts!";
 
     setTimeout(startUnity, 600);
 
   } catch (e) {
 
     overallStatus.textContent =
-      "it broke!111! " + e.message;
+      "It broke! " + e.message;
 
     console.error(e);
   }
 }
 
-console.log(
-  `[${PART_FILES[i].label}] First bytes:`,
-  Array.from(testBytes.slice(0, 16))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join(" ")
-);
-
-console.log(
-  `[${PART_FILES[i].label}] First text:`,
-  new TextDecoder().decode(testBytes.slice(0, 50))
-);
-
-assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
 
 function startUnity() {
   const partLoader = document.getElementById("part-loader");
