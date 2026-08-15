@@ -197,7 +197,25 @@ async function loadFile(fileInfo, rowIdPrefix) {
     blobs.push(blob);
   }
 
-  return new Blob(blobs);
+const assembledBlob = new Blob(blobs);
+
+const testBytes = new Uint8Array(
+  await assembledBlob.arrayBuffer()
+);
+
+console.log(
+  `[${label}] First bytes:`,
+  Array.from(testBytes.slice(0, 16))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join(" ")
+);
+
+console.log(
+  `[${label}] First text:`,
+  new TextDecoder().decode(testBytes.slice(0, 50))
+);
+
+return assembledBlob;
 }
 
       async function loadAllParts() {
