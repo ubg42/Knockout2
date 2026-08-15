@@ -218,21 +218,24 @@ console.log(
 return assembledBlob;
 }
 
-      async function loadAllParts() {
-        try {
-          for (let i = 0; i < PART_FILES.length; i++) {
-            overallStatus.textContent = `LOADING ${PART_FILES[i].label}...`;
-            const blob = await loadFile(PART_FILES[i], "file" + i);
-            assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
-          }
+const blob = await loadFile(PART_FILES[i], "file" + i);
 
-          overallStatus.textContent = "chhese";
-          setTimeout(startUnity, 600);
-        } catch (e) {
-          overallStatus.textContent = "it broke!111! " + e.message;
-          console.error(e);
-        }
-      }
+// DEBUG: inspect the assembled file
+const testBytes = new Uint8Array(await blob.arrayBuffer());
+
+console.log(
+  `[${PART_FILES[i].label}] First bytes:`,
+  Array.from(testBytes.slice(0, 16))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join(" ")
+);
+
+console.log(
+  `[${PART_FILES[i].label}] First text:`,
+  new TextDecoder().decode(testBytes.slice(0, 50))
+);
+
+assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
 
 function startUnity() {
   const partLoader = document.getElementById("part-loader");
