@@ -161,7 +161,6 @@ async function loadFile(fileInfo, rowIdPrefix) {
   const { base, label, digits, count } = fileInfo;
 
   const numParts = count;
-
   const rowIds = [];
 
   for (let i = 1; i <= numParts; i++) {
@@ -179,7 +178,6 @@ async function loadFile(fileInfo, rowIdPrefix) {
 
   for (let i = 1; i <= numParts; i++) {
     const rowId = rowIds[i - 1];
-
     const partNumber = String(i).padStart(digits, "0");
 
     const url = `${base}.part${partNumber}`;
@@ -197,25 +195,27 @@ async function loadFile(fileInfo, rowIdPrefix) {
     blobs.push(blob);
   }
 
-const assembledBlob = new Blob(blobs);
+  // Combine all parts
+  const combinedBlob = new Blob(blobs);
 
-const testBytes = new Uint8Array(
-  await assembledBlob.arrayBuffer()
-);
+  // DEBUG: inspect the assembled file
+  const testBytes = new Uint8Array(
+    await combinedBlob.arrayBuffer()
+  );
 
-console.log(
-  `[${label}] First bytes:`,
-  Array.from(testBytes.slice(0, 16))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join(" ")
-);
+  console.log(
+    `[${label}] First bytes:`,
+    Array.from(testBytes.slice(0, 16))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join(" ")
+  );
 
-console.log(
-  `[${label}] First text:`,
-  new TextDecoder().decode(testBytes.slice(0, 50))
-);
+  console.log(
+    `[${label}] First text:`,
+    new TextDecoder().decode(testBytes.slice(0, 50))
+  );
 
-return assembledBlob;
+  return combinedBlob;
 }
 
 const blob = await loadFile(PART_FILES[i], "file" + i);
