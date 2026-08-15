@@ -212,19 +212,6 @@ console.log(
 
   // DEBUG
   const buffer = await combinedBlob.arrayBuffer();
-  const testBytes = new Uint8Array(buffer);
-
-  console.log(
-    `[${label}] First bytes:`,
-    Array.from(testBytes.slice(0, 16))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join(" ")
-  );
-
-  console.log(
-    `[${label}] First text:`,
-    new TextDecoder().decode(testBytes.slice(0, 50))
-  );
 
   return combinedBlob;
 }
