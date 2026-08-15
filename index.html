@@ -302,19 +302,6 @@ function startUnity() {
         };
         document.body.appendChild(script);
       }
-  const testBytes = new Uint8Array(await blob.arrayBuffer());
-
-console.log(
-  "First bytes:",
-  Array.from(testBytes.slice(0, 16))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join(" ")
-);
-
-console.log(
-  "First text:",
-  new TextDecoder().decode(testBytes.slice(0, 50))
-);
       loadAllParts();
 </script>
   </body>
