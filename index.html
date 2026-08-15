@@ -199,6 +199,17 @@ async function loadFile(fileInfo, rowIdPrefix) {
   // Join the PineTools pieces in the correct order
   const combinedBlob = new Blob(blobs);
 
+  const testBytes = new Uint8Array(
+  await combinedBlob.arrayBuffer()
+);
+
+console.log(
+  `[${label}] First bytes:`,
+  Array.from(testBytes.slice(0, 16))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join(" ")
+);
+
   // DEBUG
   const buffer = await combinedBlob.arrayBuffer();
   const testBytes = new Uint8Array(buffer);
