@@ -11,6 +11,11 @@
     <link rel="manifest" href="manifest.webmanifest" />
   </head>
   <body>
+        <div id="part-loader">
+      <h1>Loading...</h1>
+      <div id="parts-list"></div>
+      <div id="overall-status">Knocking Penguins...</div>
+    </div>
     <!-- Unity canvas -->
     <div id="unity-container">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
@@ -23,235 +28,193 @@
     </div>
     <!-- Unity loader script -->
 <script>
-window.YaGames = { init: function() {
-  var sdk = {
-    environment:{ app:{id:'0'}, i18n:{lang:'en',tld:'com'}, browser:{lang:'en'}, payload:null },
-    deviceInfo:{ type:'desktop',
-      isMobile:function(){return false;}, isDesktop:function(){return true;},
-      isTablet:function(){return false;}, isTV:function(){return false;}
-    },
-    adv:{
-      showFullscreenAdv:function(o){
-        if(o&&o.callbacks&&o.callbacks.onClose) o.callbacks.onClose(false);
-      },
-      showRewardedVideo:function(o){
-        if(!o||!o.callbacks) return;
-        if(o.callbacks.onOpen)     o.callbacks.onOpen();
-        if(o.callbacks.onRewarded) o.callbacks.onRewarded();
-        if(o.callbacks.onClose)    o.callbacks.onClose();
-      },
-      showBannerAdv:function(){}, hideBannerAdv:function(){},
-      getBannerAdvStatus:function(){ return Promise.resolve({stickyAdvIsShowing:false}); }
-    },
-    auth:{ openAuthDialog:function(){ return Promise.resolve(); } },
-    feedback:{
-      canReview:function(){ return Promise.resolve({value:false,reason:''}); },
-      requestReview:function(){ return Promise.resolve({feedbackSent:false}); }
-    },
-    shortcut:{
-      canShowPrompt:function(){ return Promise.resolve({canShow:false}); },
-      showPrompt:function(){ return Promise.resolve({outcome:'rejected'}); }
-    },
-    getPayments:function(){ return Promise.reject('no payments'); },
-    getPlayer:function(){ return Promise.resolve({
-      isAuthorized:function(){return false;}, getMode:function(){return 'lite';},
-      getName:function(){return '';}, getUniqueID:function(){return '0';},
-      getPhoto:function(){return '';}, getPayingStatus:function(){return 'unknown';},
-      setData:function(){return Promise.resolve();}, getData:function(){return Promise.resolve({});}
-    });},
-    serverTime:function(){ return Promise.resolve(Date.now()); },
-    on:function(){},
-    features:{
-      LoadingAPI:{ready:function(){}},
-      GameplayAPI:{start:function(){},stop:function(){}}
-    }
-  };
-  return Promise.resolve(sdk);
-}};
-</script>
+      const PART_FILES = [
+        { base: "Build/knockout[8]-mirraSDK[5.1.2].data", label: "CheeseRolling.data" },
+        { base: "Build/knockout[8]-mirraSDK[5.1.2].wasm.br", label: "CheeseRolling.wasm.br" },
+      ];
 
-<!-- sdk.js stub yükle -->
-<script>
-(function(){ var s=document.createElement('script'); s.src='sdk.js';
-  s.onerror=function(){console.warn('[Stub] sdk.js yuklenemedi');}; document.head.appendChild(s); })();
+      const assembledBlobs = {};
 
-(function(){
-  function u(){
-    if(window._au) return; window._au=true;
-    try{var c=new(window.AudioContext||window.webkitAudioContext)();
-      var b=c.createBuffer(1,1,22050);var s=c.createBufferSource();
-      s.buffer=b;s.connect(c.destination);s.start(0);c.resume&&c.resume();
-    }catch(e){}
-    ['touchstart','pointerdown','click'].forEach(function(t){document.removeEventListener(t,u);});
-  }
-  ['touchstart','pointerdown','click'].forEach(function(t){document.addEventListener(t,u,{passive:true});});
-})();
-</script>
+      const partsList = document.getElementById("parts-list");
+      const overallStatus = document.getElementById("overall-status");
 
-<script>
-/* ================================================================
-   CDN — değiştir
-   ================================================================ */
-var CDN      = "Build";  /* <-- degistir */
-var DATA_FILE = "knockout[8]-mirraSDK[5.1.2].data.br";
-var WASM_FILE = "knockout[8]-mirraSDK[5.1.2].wasm.br";
-var DATA_PARTS = 5;  
-var WASM_PARTS = 15;  
+      function makePartRow(id, label) {
+        const wrap = document.createElement("div");
+        wrap.className = "part-item";
+        wrap.innerHTML = `
+          <div class="part-label" id="lbl-${id}">${label}</div>
+          <div class="part-bar-bg"><div class="part-bar-fill" id="bar-${id}"></div></div>
+          <div class="part-status" id="status-${id}">waiting...</div>
+        `;
+        partsList.appendChild(wrap);
+      }
 
+      function setBar(id, pct) {
+        document.getElementById("bar-" + id).style.width = pct + "%";
+      }
 
-var sources           = {};
-var sourcesPlayOneShot= {};
-var sdk;
-var MyGameInstance    = null;
-var _dataBlobUrl      = null;
-var _wasmBlobUrl      = null;
-var _partsReady       = false;
+      function setStatus(id, text) {
+        document.getElementById("status-" + id).textContent = text;
+      }
 
-var loadingBar    = document.querySelector("#unity-loading-bar");
-var progressFull  = document.querySelector("#unity-progress-bar-full");
-var dlStatus      = document.querySelector("#dl-status");
+      async function countParts(base) {
+        let n = 1;
+        while (true) {
+          const partName = `${base}.part${String(n).padStart(3, "0")}`;
+          const res = await fetch(partName, { method: "HEAD" });
+          if (!res.ok) break;
+          n++;
+        }
+        if (n === 1) {
+          return 0;
+        }
+        return n - 1;
+      }
 
-loadingBar.style.display = "block";
+      async function fetchPart(url, onProgress) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+        const total = parseInt(res.headers.get("Content-Length") || "0", 10);
+        const reader = res.body.getReader();
+        const chunks = [];
+        let received = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (total) onProgress(received / total);
+        }
+        return new Blob(chunks);
+      }
 
-/* DATA 0-50%, WASM 50-90%, Unity 90-100% */
-function setBar(pct, label) {
-  progressFull.style.width = pct.toFixed(1) + '%';
-  if (dlStatus) dlStatus.textContent = label || '';
-}
+      async function loadFile(fileInfo, rowIdPrefix) {
+        const { base, label } = fileInfo;
+        const numParts = await countParts(base);
 
-async function fetchParts(baseUrl, partCount, barStart, barEnd, label, padNumbers) {
-  var parts = [];
+        const rowIds = [];
+        for (let i = 1; i <= numParts; i++) {
+          const rowId = `${rowIdPrefix}_${i}`;
+          rowIds.push(rowId);
+          makePartRow(rowId, `${label} — part ${i} of ${numParts}`);
+        }
 
-  for (var i = 1; i <= partCount; i++) {
-    var partNumber = padNumbers
-      ? String(i).padStart(2, '0')
-      : String(i);
+        const blobs = [];
+        for (let i = 1; i <= numParts; i++) {
+          const rowId = rowIds[i - 1];
+          const url = `${base}.part${String(i).padStart(3, "0")}`;
+          setStatus(rowId, "downloading...");
+          const blob = await fetchPart(url, (p) => {
+            setBar(rowId, Math.round(p * 100));
+            setStatus(rowId, Math.round(p * 100) + "%");
+          });
+          setBar(rowId, 100);
+          setStatus(rowId, "cheezy done");
+          blobs.push(blob);
+        }
 
-    var partUrl = baseUrl + '.part' + partNumber;
+        return new Blob(blobs);
+      }
 
-    setBar(
-      barStart + ((i - 1) / partCount) * (barEnd - barStart),
-      label + partNumber + '/' + String(partCount).padStart(2, '0')
-    );
+      async function loadAllParts() {
+        try {
+          for (let i = 0; i < PART_FILES.length; i++) {
+            overallStatus.textContent = `LOADING ${PART_FILES[i].label}...`;
+            const blob = await loadFile(PART_FILES[i], "file" + i);
+            assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
+          }
 
-    console.log('[Parts] Loading:', partUrl);
+          overallStatus.textContent = "chhese";
+          setTimeout(startUnity, 600);
+        } catch (e) {
+          overallStatus.textContent = "it broke!111! " + e.message;
+          console.error(e);
+        }
+      }
 
-    var r = await fetch(partUrl);
+      function startUnity() {
+        document.getElementById("part-loader").style.display = "none";
+        document.getElementById("unity-container").style.display = "";
 
-    if (!r.ok) {
-      throw new Error(
-        'Failed to load ' + partUrl + ' (HTTP ' + r.status + ')'
-      );
-    }
+        window.addEventListener("load", function () {
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("ServiceWorker.js");
+          }
+        });
 
-    parts.push(new Uint8Array(await r.arrayBuffer()));
+        var container = document.querySelector("#unity-container");
+        var canvas = document.querySelector("#unity-canvas");
+        var loadingBar = document.querySelector("#unity-loading-bar");
+        var progressBarFull = document.querySelector(
+          "#unity-progress-bar-full",
+        );
+        var warningBanner = document.querySelector("#unity-warning");
 
-    setBar(
-      barStart + (i / partCount) * (barEnd - barStart),
-      label + partNumber + '/' + String(partCount).padStart(2, '0')
-    );
-  }
+        function unityShowBanner(msg, type) {
+          function updateBannerVisibility() {
+            warningBanner.style.display = warningBanner.children.length
+              ? "block"
+              : "none";
+          }
+          var div = document.createElement("div");
+          div.innerHTML = msg;
+          warningBanner.appendChild(div);
+          if (type == "error") div.style = "background: red; padding: 10px;";
+          else {
+            if (type == "warning")
+              div.style = "background: yellow; padding: 10px;";
+            setTimeout(function () {
+              warningBanner.removeChild(div);
+              updateBannerVisibility();
+            }, 5000);
+          }
+          updateBannerVisibility();
+        }
 
-  var total = parts.reduce(function (sum, part) {
-    return sum + part.length;
-  }, 0);
+        var buildUrl = "Build";
+        var loaderUrl = buildUrl + "/knockout[8]-mirraSDK[5.1.2].loader.js";
+        var config = {
+          dataUrl:
+            assembledBlobs["Build/knockout[8]-mirraSDK[5.1.2].data"] ||
+            buildUrl + "/knockout[8]-mirraSDK[5.1.2].data",
+          frameworkUrl: buildUrl + "/knockout[8]-mirraSDK[5.1.2].framework.js",
+          codeUrl:
+            assembledBlobs["Build/knockout[8]-mirraSDK[5.1.2].wasm.br"] ||
+            buildUrl + "/knockout[8]-mirraSDK[5.1.2].wasm.br",
+          streamingAssetsUrl: "StreamingAssets",
+          companyName: "The Interviewed",
+          productName: "CheeseRolling",
+          productVersion: "v1.5.1",
+          showBanner: unityShowBanner,
+        };
 
-  var merged = new Uint8Array(total);
-  var offset = 0;
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          var meta = document.createElement("meta");
+          meta.name = "viewport";
+          meta.content =
+            "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+          document.getElementsByTagName("head")[0].appendChild(meta);
+        }
 
-  for (var j = 0; j < parts.length; j++) {
-    merged.set(parts[j], offset);
-    offset += parts[j].length;
-  }
+        loadingBar.style.display = "block";
 
-  return merged;
-}
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+          createUnityInstance(canvas, config, (progress) => {
+            progressBarFull.style.width = 100 * progress + "%";
+          })
+            .then((unityInstance) => {
+              loadingBar.style.display = "none";
+            })
+            .catch((message) => {
+              alert(message);
+            });
+        };
+        document.body.appendChild(script);
+      }
 
-/* Paralel: SDK init + reklam + part indirme aynı anda */
-async function preloadParts() {
-  try {
-    setBar(0, 'Data indiriliyor...');
-
-    // DATA: .part1, .part2, .part3...
-    var dataBytes = await fetchParts(
-      CDN + '/' + DATA_FILE,
-      DATA_PARTS,
-      1,
-      50,
-      'Data indiriliyor... ',
-      false
-    );
-
-    _dataBlobUrl = brotliBlobUrl(dataBytes, DATA_FILE);
-
-    // WASM: .part01, .part02, .part03...
-    var wasmBytes = await fetchParts(
-      CDN + '/' + WASM_FILE,
-      WASM_PARTS,
-      50,
-      90,
-      'WASM indiriliyor... ',
-      true
-    );
-
-    _wasmBlobUrl = brotliBlobUrl(wasmBytes, WASM_FILE);
-
-    setBar(90, 'Oyun başlatılıyor...');
-    _partsReady = true;
-
-    console.log('[Drift] Parts ready, waiting for ad close...');
-  } catch (e) {
-    dlStatus.textContent = 'İndirme hatası: ' + e.message;
-    console.error(e);
-  }
-}
-
-function initializeUnity() {
-  var container     = document.querySelector("#unity-container");
-  var canvas        = document.querySelector("#unity-canvas");
-  var warningBanner = document.querySelector("#unity-warning");
-
-  function unityShowBanner(msg, type) {
-    function upd(){ warningBanner.style.display = warningBanner.children.length?'block':'none'; }
-    var div=document.createElement('div'); div.innerHTML=msg; warningBanner.appendChild(div);
-    if(type==='error') div.style='background:red;padding:10px;';
-    else { if(type==='warning') div.style='background:yellow;padding:10px;';
-      setTimeout(function(){ warningBanner.removeChild(div); upd(); },5000); }
-    upd();
-  }
-
-  var config = {
-    dataUrl:            _dataBlobUrl,
-    frameworkUrl:       CDN + "/knockout[8]-mirraSDK[5.1.2].framework.js.br",
-    codeUrl:            _wasmBlobUrl,
-    streamingAssetsUrl: "StreamingAssets",
-    companyName:        "Drift No Limit",
-    productName:        "Drift No Limit",
-    productVersion:     "90",
-    showBanner:         unityShowBanner
-  };
-
-  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-    var meta=document.createElement('meta');
-    meta.name='viewport';
-    meta.content='width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes';
-    document.getElementsByTagName('head')[0].appendChild(meta);
-    container.className="unity-mobile";
-  }
-  canvas.style.width="100%"; canvas.style.height="100%";
-
-  var script=document.createElement("script");
-  script.src=CDN+"/knockout[8]-mirraSDK[5.1.2].loader.js";
-  script.onload=function(){
-    createUnityInstance(canvas, config, function(progress){
-      setBar(90+progress*10, progress<1?'Oyun yükleniyor... '+Math.round(90+progress*10)+'%':'');
-    }).then(function(inst){
-      MyGameInstance = inst;
-      loadingBar.style.display = "none";
-    }).catch(function(msg){ alert(msg); });
-  };
-  document.body.appendChild(script);
-}
+      loadAllParts();
 </script>
   </body>
 </html>
