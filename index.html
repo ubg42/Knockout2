@@ -302,8 +302,6 @@ function startUnity() {
         };
         document.body.appendChild(script);
       }
-
-      loadAllParts();
   const testBytes = new Uint8Array(await blob.arrayBuffer());
 
 console.log(
@@ -317,6 +315,7 @@ console.log(
   "First text:",
   new TextDecoder().decode(testBytes.slice(0, 50))
 );
+      loadAllParts();
 </script>
   </body>
 </html>
